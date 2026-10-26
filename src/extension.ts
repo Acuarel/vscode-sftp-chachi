@@ -47,6 +47,8 @@ export async function activate(context: vscode.ExtensionContext) {
     if (currentText.startsWith('SFTP')) {
       app.sftpBarItem.reset();
     }
+    // El perfil activo puede cambiar la carpeta local y el watcher.
+    getAllFileService().forEach(service => service.refreshWatcher());
     if (app.remoteExplorer) {
       app.remoteExplorer.refresh();
     }

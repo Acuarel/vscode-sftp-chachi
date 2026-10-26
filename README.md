@@ -138,6 +138,7 @@ You can see the full list of configuration options [here](https://github.com/Nat
   "username": "username",
   "password": "password",
   "remotePath": "/remote/workspace/a",
+  "context": "httpdocs",
   "watcher": {
     "files": "dist/*.{js,css}",
     "autoUpload": false,
@@ -151,14 +152,15 @@ You can see the full list of configuration options [here](https://github.com/Nat
     },
     "prod": {
       "host": "prod-host",
-      "remotePath": "/prod"
+      "remotePath": "/prod",
+      "context": "httpdocs/dist"
     }
   },
   "defaultProfile": "dev"
 }
 ```
 
-_Note：_ `context` and `watcher` are only available at root level.
+A profile inherits the root values. `context` and `watcher` set on a profile replace the root ones. A profile that omits them keeps the root folder and the root watcher.
 
 Use `SFTP: Set Profile` to switch profile.
 

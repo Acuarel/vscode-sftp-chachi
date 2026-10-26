@@ -4,7 +4,7 @@ import { FileType } from '../core';
 import { getAllFileService } from '../modules/serviceManager';
 import { ExplorerItem } from '../modules/remoteExplorer';
 import { getActiveTextEditor } from '../host';
-import { listFiles, toLocalPath, simplifyPath } from '../helper';
+import { listFiles, toLocalPath, simplifyPath, getBasePath } from '../helper';
 
 function configIngoreFilterCreator(config) {
   if (!config || !config.ignore) {
@@ -27,7 +27,7 @@ function createFileSelector(filterCreator?) {
         getFs: () => fileService.getRemoteFileSystem(config),
         index,
         remoteBaseDir: config.remotePath,
-        baseDir: fileService.baseDir,
+        baseDir: getBasePath(config.context, fileService.workspace),
       };
     });
 

@@ -6,6 +6,8 @@ test/test.js
 _debug
 TODO.md
 INSTALL_DEBUG.md
+planesIA/
+como-compilar.md
 
 ### Extensions ###
 sftp-*.vsix

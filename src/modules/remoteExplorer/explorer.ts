@@ -6,7 +6,7 @@ import {
   COMMAND_REMOTEEXPLORER_VIEW_CONTENT,
 } from '../../constants';
 import { UResource } from '../../core';
-import { toRemotePath } from '../../helper';
+import { toRemotePath, getBasePath } from '../../helper';
 import { REMOTE_SCHEME } from '../../constants';
 import { getFileService } from '../serviceManager';
 import RemoteTreeDataProvider, { ExplorerItem } from './treeDataProvider';
@@ -47,7 +47,8 @@ export default class RemoteExplorer {
       }
       const config = fileService.getConfig();
       const localPath = item.resource.fsPath;
-      const remotePath = toRemotePath(localPath, config.context, config.remotePath);
+      const localContext = getBasePath(config.context, fileService.workspace);
+      const remotePath = toRemotePath(localPath, localContext, config.remotePath);
       item.resource = UResource.makeResource({
         remote: {
           host: config.host,

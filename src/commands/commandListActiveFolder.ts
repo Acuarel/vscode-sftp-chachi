@@ -7,7 +7,7 @@ import { downloadFile, downloadFolder } from '../fileHandlers';
 import { checkCommand } from './abstract/createCommand';
 import { getActiveFolder } from './shared';
 import { handleCtxFromUri } from '../fileHandlers';
-import { listFiles, toLocalPath } from '../helper';
+import { listFiles, toLocalPath, getBasePath } from '../helper';
 
 export default checkCommand({
   id: COMMAND_LIST_ACTIVEFOLDER,
@@ -38,7 +38,7 @@ export default checkCommand({
     }
 
     const localUri = Uri.file(
-      toLocalPath(selected.fsPath, config.remotePath, ctx.fileService.baseDir)
+      toLocalPath(selected.fsPath, config.remotePath, getBasePath(config.context, ctx.fileService.workspace))
     );
     if (selected.type !== FileType.Directory) {
       await downloadFile(localUri);

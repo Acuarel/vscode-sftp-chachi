@@ -2,6 +2,7 @@ import { Uri } from 'vscode';
 import app from '../app';
 import { UResource, FileService, ServiceConfig } from '../core';
 import logger from '../logger';
+import { getBasePath, isSubpathOf } from '../helper';
 import { getFileService } from '../modules/serviceManager';
 
 interface FileHandlerConfig {
@@ -36,7 +37,7 @@ export function handleCtxFromUri(uri: Uri): FileHandlerContext {
   }
   const config = fileService.getConfig();
   const target = UResource.from(uri, {
-    localBasePath: fileService.baseDir,
+    localBasePath: getBasePath(config.context, fileService.workspace),
     remoteBasePath: config.remotePath,
     remoteId: fileService.id,
     remote: {
@@ -66,7 +67,7 @@ export function allHandleCtxFromUri(uri: Uri): Array<FileHandlerContext> {
 
   return configArr.map(config => {
     const target = UResource.from(uri, {
-      localBasePath: fileService.baseDir,
+      localBasePath: getBasePath(config.context, fileService.workspace),
       remoteBasePath: config.remotePath,
       remoteId: fileService.id,
       remote: {
@@ -89,6 +90,12 @@ export default function createFileHandler<T>(
   async function fileHandle(ctx: Uri | FileHandlerContext, option?: T) {
     const handleCtx = ctx instanceof Uri ? handleCtxFromUri(ctx) : ctx;
     const { target } = handleCtx;
+    const contextPath = getBasePath(handleCtx.config.context, handleCtx.fileService.workspace);
+    // Una orden fuera de la carpeta del perfil no debe acabar en ../ en el remoto.
+    if (!isSubpathOf(contextPath, target.localFsPath)) {
+      logger.info(`Se omite ${target.localFsPath}: fuera de ${contextPath}`);
+      return;
+    }
 
     const invokeOption = handlerOption.transformOption
       ? handlerOption.transformOption.call(handleCtx)

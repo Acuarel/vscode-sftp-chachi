@@ -5,7 +5,7 @@ import * as sshConfig from 'ssh-config';
 import app from '../app';
 import logger from '../logger';
 import { getUserSetting } from '../host';
-import { replaceHomePath, resolvePath } from '../helper';
+import { replaceHomePath, resolvePath, getBasePath, isSubpathOf } from '../helper';
 import { SETTING_KEY_REMOTE } from '../constants';
 import upath from './upath';
 import Ignore from './ignore';
@@ -371,6 +371,7 @@ export default class FileService {
   private _eventEmitter: EventEmitter = new EventEmitter();
   private _name: string;
   private _watcherConfig: WatcherConfig;
+  private _watcherBase?: string;
   private _profiles: string[];
   private _pendingTransferTasks: Set<TransferTask> = new Set();
   private _transferSchedulers: TransferScheduler[] = [];
@@ -417,6 +418,12 @@ export default class FileService {
     }
 
     this._watcherService = watcherService;
+    this._createWatcher();
+  }
+
+  // El perfil activo puede traer otro context y otro watcher.
+  refreshWatcher() {
+    this._disposeWatcher();
     this._createWatcher();
   }
 
@@ -589,7 +596,7 @@ export default class FileService {
   }
 
   private _createIgnoreFn(config: FileServiceConfig): ServiceConfig['ignore'] {
-    const localContext = this.baseDir;
+    const localContext = getBasePath(config.context, this.workspace);
     const remoteContext = config.remotePath;
 
     const ignoreConfig = filesIgnoredFromConfig(config);
@@ -602,9 +609,8 @@ export default class FileService {
       // vscode will always return path with / as separator
       const normalizedPath = path.normalize(fsPath);
       let relativePath;
-      if (normalizedPath.indexOf(localContext) === 0) {
-        // local path
-        relativePath = path.relative(localContext, fsPath);
+      if (isSubpathOf(localContext, normalizedPath)) {
+        relativePath = path.relative(localContext, normalizedPath);
       } else {
         // remote path
         relativePath = upath.relative(remoteContext, fsPath);
@@ -618,11 +624,29 @@ export default class FileService {
   }
 
   private _createWatcher() {
-    this._watcherService.create(this.baseDir, this._watcherConfig);
+    let watcherBase = this.baseDir;
+    let watcherConfig = this._config.watcher;
+    try {
+      const config = this.getConfig();
+      watcherBase = getBasePath(config.context, this.workspace);
+      watcherConfig = config.watcher;
+    } catch (error) {
+      // Sin perfil válido se queda el watcher de la raíz, como hasta ahora.
+      logger.warn('No se aplica el watcher del perfil activo', error);
+    }
+
+    this._watcherConfig = watcherConfig;
+    this._watcherBase = watcherBase;
+    this._watcherService.create(watcherBase, this._watcherConfig);
   }
 
   private _disposeWatcher() {
-    this._watcherService.dispose(this.baseDir);
+    if (!this._watcherBase) {
+      return;
+    }
+
+    this._watcherService.dispose(this._watcherBase);
+    this._watcherBase = undefined;
   }
 
   // fixme: remote all profiles

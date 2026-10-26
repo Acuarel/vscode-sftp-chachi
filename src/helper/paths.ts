@@ -1,13 +1,14 @@
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
-import { URI } from 'vscode-uri';
+import URI from 'vscode-uri';
 import { upath } from '../core';
 import { pathRelativeToWorkspace, getWorkspaceFolders } from '../host';
 
 // from https://github.com/microsoft/vscode-eslint/blob/d97a8b5e99ad30d2ce32ffa5646447202f873413/server/src/eslintServer.ts#L816
-function getFileSystemPath(uri: URI): string {
-	let result = uri.fsPath;
+function getFileSystemPath(uri: URI | string): string {
+	// toRemotePath recibe rutas en texto. URI.fsPath solo existe en un Uri.
+	let result = typeof uri === 'string' ? uri : uri.fsPath;
 	if (process.platform === 'win32' && result.length >= 2 && result[1] === ':') {
 		// Node by default uses an upper case drive letter and ESLint uses
 		// === to compare paths which results in the equal check failing
@@ -38,8 +39,53 @@ export function toLocalPath(remotePath: string, remoteContext: string, localCont
   return path.join(localContext, upath.relative(remoteContext, remotePath));
 }
 
-export function isSubpathOf(possiableParentPath: string, pathname: string) {
-  return path.normalize(pathname).indexOf(path.normalize(possiableParentPath)) === 0;
+const WIN_DRIVE_REGEX = /^([a-zA-Z]):/;
+const isWindows = process.platform === 'win32';
+
+// Misma normalización que usa el índice de servicios para encontrar la carpeta.
+export function normalizePathForTrie(pathname: string) {
+  if (isWindows) {
+    const device = pathname.substr(0, 2);
+    if (device.charAt(1) === ':') {
+      pathname = pathname[0].toLowerCase() + pathname.substr(1);
+    }
+  }
+
+  return path.normalize(pathname);
+}
+
+// context vacío: la carpeta del workspace. Relativo: se junta con el workspace.
+export function getBasePath(context: string | undefined, workspace: string) {
+  let dirpath: string;
+  if (context) {
+    if (path.isAbsolute(context)) {
+      dirpath = context;
+      if (isWindows) {
+        const contextBeginWithDrive = context.match(WIN_DRIVE_REGEX);
+        // Si en Windows falta la unidad, se usa la del workspace.
+        if (!contextBeginWithDrive) {
+          const workspaceDrive = workspace.match(WIN_DRIVE_REGEX);
+          if (workspaceDrive) {
+            const drive = workspaceDrive[1];
+            dirpath = path.join(`${drive}:`, context);
+          }
+        }
+      }
+    } else {
+      // path.resolve en Windows puede cambiar la raíz. path.join no.
+      dirpath = path.join(workspace, context);
+    }
+  } else {
+    dirpath = workspace;
+  }
+
+  return normalizePathForTrie(dirpath);
+}
+
+export function isSubpathOf(parentPath: string, pathname: string) {
+  const relative = path.relative(parentPath, pathname);
+  return relative === ''
+    || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
 }
 
 export function replaceHomePath(pathname: string) {
